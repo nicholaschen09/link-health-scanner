@@ -89,7 +89,7 @@ def get_scan_options() -> Dict[str, Any]:
         clear_screen()
         print("\n" * 2)
         print(center_text("Scan Options"))
-        print(center_text("(Use arrow keys to navigate, space to toggle, Enter to continue)"))
+        print(center_text("(↑↓ to navigate, Space/Y/N to toggle, Enter to continue)"))
         print("\n")
 
         width = get_terminal_width()
@@ -131,6 +131,10 @@ def get_scan_options() -> Dict[str, Any]:
             break
         elif key == ' ':  # Space bar to toggle
             options[current_index]['value'] = not options[current_index]['value']
+        elif key.lower() == 'y':  # Y key to enable
+            options[current_index]['value'] = True
+        elif key.lower() == 'n':  # N key to disable
+            options[current_index]['value'] = False
         elif key == '\x1b[A':  # Up arrow
             current_index = max(0, current_index - 1)
         elif key == '\x1b[B':  # Down arrow
@@ -151,8 +155,8 @@ def get_scan_options() -> Dict[str, Any]:
 def display_scanning_message():
     """Display scanning in progress message."""
     print("\n" * 2)
-    print(center_text("🔍 Scanning in progress..."))
-    print(center_text("This may take a few moments"))
+    print(center_text("scanning in progress..."))
+    print(center_text("this may take a few moments"))
     print("\n")
 
 
