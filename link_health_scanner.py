@@ -24,6 +24,14 @@ from urllib.parse import urljoin, urlparse, urlunparse
 import requests
 
 
+def _shorten(text: str, limit: int = 100) -> str:
+    if not text:
+        return ""
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
 class _LinkExtractor(HTMLParser):
     """Lightweight HTML parser for collecting href/src attributes."""
 
@@ -462,16 +470,16 @@ def main(argv: Optional[List[str]] = None) -> int:
             return
         print(title)
         for rep in matching:
-            parts = [f"- {rep.url}"]
+            parts = [f"- {_shorten(rep.url)}"]
             if rep.status_code:
                 parts.append(f"(HTTP {rep.status_code})")
             if rep.referrers:
-                sources = ", ".join(rep.referrers[:3])
+                sources = ", ".join(_shorten(src) for src in rep.referrers[:3])
                 if len(rep.referrers) > 3:
                     sources += ", ..."
                 parts.append(f"from {sources}")
             if rep.redirected_to:
-                parts.append(f"-> {rep.redirected_to}")
+                parts.append(f"-> {_shorten(rep.redirected_to)}")
             if rep.issues:
                 parts.append(f"Issues: {', '.join(rep.issues)}")
             if rep.outdated_signals:
@@ -489,12 +497,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     if unused_links and (not args.skip_orphans):
         print("Unused / Orphan Links")
         for url in unused_links:
-            print(f"  - {url}")
+            print(f"  - {_shorten(url)}")
         print()
     if sitemap_only_links and (not args.skip_orphans):
         print("Sitemap-only Links (never visited)")
         for url in sitemap_only_links:
-            print(f"  - {url}")
+            print(f"  - {_shorten(url)}")
         print()
 
     print("All Links Scanned")
@@ -502,16 +510,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         status_desc = rep.status
         if rep.status_code:
             status_desc += f" (HTTP {rep.status_code})"
-        print(f"  - {rep.url}")
+        print(f"  - {_shorten(rep.url)}")
         print(f"      Status: {status_desc}")
         if rep.redirected_to:
-            print(f"      Redirects to: {rep.redirected_to}")
+            print(f"      Redirects to: {_shorten(rep.redirected_to)}")
         if rep.issues:
             print(f"      Issues: {', '.join(rep.issues)}")
         if rep.links_found:
             print("      Links found:")
             for child in rep.links_found:
-                print(f"        - {child}")
+                print(f"        - {_shorten(child)}")
     print()
 
     return 0

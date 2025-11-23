@@ -12,6 +12,13 @@ from link_health_scanner import LinkHealthScanner, LinkReport
 import cli_ui
 
 
+def _truncate(text: str, limit: int = 90) -> str:
+    """Trim long URLs/routes for display."""
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
 def run_interactive_mode():
     """Run the scanner in interactive mode with clean UI."""
     cli_ui.print_header()
@@ -79,9 +86,9 @@ def display_detailed_results(
         if broken:
             print("\n" + cli_ui.center_text("── Broken Links ──"))
             for rep in broken:
-                print(f"{indent}URL: {rep.url}")
+                print(f"{indent}URL: {_truncate(rep.url)}")
                 if rep.referrers:
-                    sources = ", ".join(rep.referrers[:3])
+                    sources = ", ".join(_truncate(src) for src in rep.referrers[:3])
                     if len(rep.referrers) > 3:
                         sources += ", ..."
                     print(f"{indent}  Found on: {sources}")
@@ -93,27 +100,27 @@ def display_detailed_results(
         if redirects:
             print("\n" + cli_ui.center_text("── Redirects ──"))
             for rep in redirects:
-                print(f"{indent}URL: {rep.url}")
-                print(f"{indent}  Redirects to: {rep.redirected_to}")
+                print(f"{indent}URL: {_truncate(rep.url)}")
+                print(f"{indent}  Redirects to: {_truncate(rep.redirected_to or '')}")
 
     if options['check_outdated']:
         outdated = [r for r in reports if r.outdated_signals]
         if outdated:
             print("\n" + cli_ui.center_text("── Potentially Outdated ──"))
             for rep in outdated:
-                print(f"{indent}URL: {rep.url}")
+                print(f"{indent}URL: {_truncate(rep.url)}")
                 for signal in rep.outdated_signals:
                     print(f"{indent}  Signal: {signal}")
 
     if options['check_orphans'] and unused_links:
         print("\n" + cli_ui.center_text("── Orphan Links (no internal references) ──"))
         for url in unused_links:
-            print(f"{indent}{url}")
+            print(f"{indent}{_truncate(url)}")
 
     if options['check_orphans'] and sitemap_only_links:
         print("\n" + cli_ui.center_text("── Sitemap-only Links (never visited) ──"))
         for url in sitemap_only_links:
-            print(f"{indent}{url}")
+            print(f"{indent}{_truncate(url)}")
 
     # Always list every scanned link with status
     print("\n" + cli_ui.center_text("── All Links Scanned ──"))
@@ -121,16 +128,16 @@ def display_detailed_results(
         status = rep.status
         if rep.status_code:
             status += f" (HTTP {rep.status_code})"
-        print(f"{indent}{rep.url}")
+        print(f"{indent}{_truncate(rep.url)}")
         print(f"{indent}  Status: {status}")
         if rep.redirected_to:
-            print(f"{indent}  Redirects to: {rep.redirected_to}")
+            print(f"{indent}  Redirects to: {_truncate(rep.redirected_to)}")
         if rep.issues:
             print(f"{indent}  Issues: {', '.join(rep.issues)}")
         if rep.links_found:
             print(f"{indent}  Links found:")
             for child in rep.links_found:
-                print(f"{indent}    - {child}")
+                print(f"{indent}    - {_truncate(child)}")
 
     print("\n")
 
@@ -150,16 +157,16 @@ def print_cli_sections(
             return
         print(f"\n{title}")
         for rep in items:
-            print(f"- URL: {rep.url}")
+            print(f"- URL: {_truncate(rep.url)}")
             if rep.status_code:
                 print(f"  Status: HTTP {rep.status_code}")
             if rep.referrers:
-                sources = ", ".join(rep.referrers[:3])
+                sources = ", ".join(_truncate(src) for src in rep.referrers[:3])
                 if len(rep.referrers) > 3:
                     sources += ", ..."
                 print(f"  Found on: {sources}")
             if rep.redirected_to:
-                print(f"  Redirects to: {rep.redirected_to}")
+                print(f"  Redirects to: {_truncate(rep.redirected_to)}")
             if rep.issues:
                 print(f"  Issues: {', '.join(rep.issues)}")
             if rep.outdated_signals:
@@ -173,27 +180,27 @@ def print_cli_sections(
     if show_orphans and unused_links:
         print("\nOrphan Links (no internal references)")
         for url in unused_links:
-            print(f"- {url}")
+            print(f"- {_truncate(url)}")
     if show_orphans and sitemap_only_links:
         print("\nSitemap-only Links (never visited during crawl)")
         for url in sitemap_only_links:
-            print(f"- {url}")
+            print(f"- {_truncate(url)}")
 
     print("\nAll Links Scanned")
     for rep in reports:
         status = rep.status
         if rep.status_code:
             status += f" (HTTP {rep.status_code})"
-        print(f"- {rep.url}")
+        print(f"- {_truncate(rep.url)}")
         print(f"  Status: {status}")
         if rep.redirected_to:
-            print(f"  Redirects to: {rep.redirected_to}")
+            print(f"  Redirects to: {_truncate(rep.redirected_to)}")
         if rep.issues:
             print(f"  Issues: {', '.join(rep.issues)}")
         if rep.links_found:
             print("  Links found:")
             for child in rep.links_found:
-                print(f"    - {child}")
+                print(f"    - {_truncate(child)}")
 
 
 def run_cli_mode(args):
