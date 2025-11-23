@@ -21,10 +21,8 @@ def _truncate(text: str, limit: int = 90) -> str:
 
 def run_interactive_mode():
     """Run the scanner in interactive mode with clean UI."""
-    cli_ui.print_header()
-    options = cli_ui.get_scan_options()
-
     while True:
+        cli_ui.print_header()
         url = cli_ui.get_url_input()
         if not url:
             print(cli_ui.center_text("Please enter a URL or type 'q' to quit."))
@@ -32,6 +30,8 @@ def run_interactive_mode():
         if url.lower() == "q":
             print(cli_ui.center_text("Goodbye!"))
             return 0
+
+        options = cli_ui.get_scan_options()
 
         cli_ui.display_scanning_message()
 
@@ -64,7 +64,6 @@ def run_interactive_mode():
 
         if not cli_ui.prompt_run_again():
             break
-        cli_ui.print_header()
 
     print(cli_ui.center_text("Goodbye!"))
     return 0
