@@ -11,8 +11,10 @@ from typing import List
 from link_health_scanner import LinkHealthScanner, LinkReport
 import cli_ui
 
+MAX_LINK_DISPLAY = len("https://fonts.googleapis.com/css2?family=Roboto:wght@300;")
 
-def _truncate(text: str, limit: int = 90) -> str:
+
+def _truncate(text: str, limit: int = MAX_LINK_DISPLAY) -> str:
     """Trim long URLs/routes for display."""
     if len(text) <= limit:
         return text

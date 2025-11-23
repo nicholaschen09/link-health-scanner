@@ -30,7 +30,10 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 
 
-def _shorten(text: str, limit: int = 100) -> str:
+MAX_LINK_DISPLAY = len("https://fonts.googleapis.com/css2?family=Roboto:wght@300;")
+
+
+def _shorten(text: str, limit: int = MAX_LINK_DISPLAY) -> str:
     if not text:
         return ""
     if len(text) <= limit:
