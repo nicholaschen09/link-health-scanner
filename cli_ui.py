@@ -30,10 +30,10 @@ def center_text(text: str, width: int = None) -> str:
 
 def print_header():
     """Print a clean, centered header."""
-    width = get_terminal_width()
     clear_screen()
     print("\n" * 2)
     print(center_text("LINK HEALTH SCANNER"))
+    print("\n" * 2)
     print(center_text("a website link checker and analyzer"))
     print("\n" * 2)
 
