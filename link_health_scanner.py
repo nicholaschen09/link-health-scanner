@@ -488,6 +488,19 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"  - {url}")
         print()
 
+    print("All Links Scanned")
+    for rep in reports:
+        status_desc = rep.status
+        if rep.status_code:
+            status_desc += f" (HTTP {rep.status_code})"
+        print(f"  - {rep.url}")
+        print(f"      Status: {status_desc}")
+        if rep.redirected_to:
+            print(f"      Redirects to: {rep.redirected_to}")
+        if rep.issues:
+            print(f"      Issues: {', '.join(rep.issues)}")
+    print()
+
     return 0
 
 
