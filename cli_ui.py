@@ -4,6 +4,9 @@ Provides a clean, simple interface for user interaction.
 """
 
 import os
+import sys
+import termios
+import tty
 from typing import Dict, Any
 
 
@@ -63,56 +66,86 @@ def get_url_input() -> str:
 
 
 def get_scan_options() -> Dict[str, Any]:
-    """Get scan options from user with defaults."""
-    print("\n" * 2)
-    print(center_text("Configure Scan Options"))
-    print(center_text("(Press Enter to use defaults)"))
-    print("\n")
+    """Get scan options from user with interactive selection."""
+    # Default options - all enabled except external links
+    options = [
+        {'name': 'Check for broken links', 'key': 'check_broken', 'value': True},
+        {'name': 'Check for redirects', 'key': 'check_redirects', 'value': True},
+        {'name': 'Check for outdated content', 'key': 'check_outdated', 'value': True},
+        {'name': 'Include external links', 'key': 'include_external', 'value': False},
+    ]
 
-    width = get_terminal_width()
-    options = {}
+    # Fixed numeric options
+    fixed_options = {
+        'max_pages': 150,
+        'max_depth': 3,
+        'timeout': 10
+    }
 
-    def get_bool_option(prompt: str, default: bool = True) -> bool:
-        """Get a boolean option with default."""
-        default_text = "Y" if default else "N"
-        full_prompt = f"{prompt} [{default_text}/{'n' if default else 'y'}]: "
-        padding = (width - len(full_prompt)) // 2
-        print(" " * padding, end="")
-        response = input(full_prompt).strip().lower()
+    current_index = 0
 
-        if not response:
-            return default
-        return response in ['y', 'yes', 'true', '1']
+    def display_menu(selected_idx):
+        """Display the full menu screen."""
+        clear_screen()
+        print("\n" * 2)
+        print(center_text("Scan Options"))
+        print(center_text("(Use arrow keys to navigate, space to toggle, Enter to continue)"))
+        print("\n")
 
-    def get_int_option(prompt: str, default: int) -> int:
-        """Get an integer option with default."""
-        full_prompt = f"{prompt} [{default}]: "
-        padding = (width - len(full_prompt)) // 2
-        print(" " * padding, end="")
-        response = input(full_prompt).strip()
+        width = get_terminal_width()
+        padding = (width - 50) // 2
 
-        if not response:
-            return default
+        for i, opt in enumerate(options):
+            indicator = "✓" if opt['value'] else "✗"
+            if i == selected_idx:
+                # Highlight current selection
+                print(" " * padding + f"▶ [{indicator}] {opt['name']}")
+            else:
+                print(" " * padding + f"  [{indicator}] {opt['name']}")
+
+        print()
+        print(" " * padding + f"  Max pages: {fixed_options['max_pages']}")
+        print(" " * padding + f"  Max depth: {fixed_options['max_depth']}")
+        print(" " * padding + f"  Timeout: {fixed_options['timeout']}s")
+
+    def get_key():
+        """Get a single keypress from user."""
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
         try:
-            return int(response)
-        except ValueError:
-            return default
+            tty.setraw(sys.stdin.fileno())
+            key = sys.stdin.read(1)
+            # Handle arrow keys (they come as escape sequences)
+            if key == '\x1b':
+                key += sys.stdin.read(2)
+            return key
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-    print(center_text("── Check Types ──"))
-    print()
-    options['check_broken'] = get_bool_option("Check for broken links", True)
-    options['check_redirects'] = get_bool_option("Check for redirects", True)
-    options['check_outdated'] = get_bool_option("Check for outdated content", True)
-    options['include_external'] = get_bool_option("Include external links", False)
+    # Interactive loop
+    while True:
+        display_menu(current_index)
+        key = get_key()
 
-    print()
-    print(center_text("── Scan Limits ──"))
-    print()
-    options['max_pages'] = get_int_option("Max pages to scan", 150)
-    options['max_depth'] = get_int_option("Max crawl depth", 3)
-    options['timeout'] = get_int_option("Request timeout (seconds)", 10)
+        if key == '\r' or key == '\n':  # Enter key
+            break
+        elif key == ' ':  # Space bar to toggle
+            options[current_index]['value'] = not options[current_index]['value']
+        elif key == '\x1b[A':  # Up arrow
+            current_index = max(0, current_index - 1)
+        elif key == '\x1b[B':  # Down arrow
+            current_index = min(len(options) - 1, current_index + 1)
+        elif key == '\x03':  # Ctrl+C
+            raise KeyboardInterrupt
 
-    return options
+    clear_screen()
+    print_header()  # Redisplay header after options selection
+
+    # Convert to final options dict
+    result = {opt['key']: opt['value'] for opt in options}
+    result.update(fixed_options)
+
+    return result
 
 
 def display_scanning_message():
@@ -156,5 +189,8 @@ def display_summary(summary: Dict[str, int]):
 
     if summary.get('error', 0) > 0:
         print(" " * padding + f"! Connection Errors: {summary['error']}")
+
+    if summary.get('unused', 0) > 0:
+        print(" " * padding + f"Ø Unused Links: {summary['unused']}")
 
     print("\n")

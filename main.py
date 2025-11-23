@@ -42,13 +42,14 @@ def run_interactive_mode():
         result = scanner.run()
         reports: List[LinkReport] = result["reports"]
         summary = result["summary"]
+        unused_links = result.get("unused_links", [])
 
         # Display results
         cli_ui.display_results_header()
         cli_ui.display_summary(summary)
 
         # Always show detailed results for clarity
-        display_detailed_results(reports, options)
+        display_detailed_results(reports, options, unused_links)
 
     except Exception as e:
         print(cli_ui.center_text(f"Error: {str(e)}"))
@@ -57,7 +58,9 @@ def run_interactive_mode():
     return 0
 
 
-def display_detailed_results(reports: List[LinkReport], options: dict):
+def display_detailed_results(
+    reports: List[LinkReport], options: dict, unused_links: List[str]
+):
     """Display detailed results based on user preferences."""
     width = cli_ui.get_terminal_width()
     padding = (width - 60) // 2
@@ -69,8 +72,11 @@ def display_detailed_results(reports: List[LinkReport], options: dict):
             print("\n" + cli_ui.center_text("── Broken Links ──"))
             for rep in broken:
                 print(f"{indent}✗ {rep.url}")
-                if rep.referrer:
-                    print(f"{indent}  Found on: {rep.referrer}")
+                if rep.referrers:
+                    sources = ", ".join(rep.referrers[:3])
+                    if len(rep.referrers) > 3:
+                        sources += ", ..."
+                    print(f"{indent}  Found on: {sources}")
                 if rep.issues:
                     print(f"{indent}  Issue: {', '.join(rep.issues)}")
 
@@ -90,6 +96,11 @@ def display_detailed_results(reports: List[LinkReport], options: dict):
                 print(f"{indent}⌚ {rep.url}")
                 for signal in rep.outdated_signals:
                     print(f"{indent}  • {signal}")
+
+    if unused_links:
+        print("\n" + cli_ui.center_text("── Unused / Orphan Links ──"))
+        for url in unused_links:
+            print(f"{indent}Ø {url}")
 
     print("\n")
 
@@ -114,6 +125,7 @@ def run_cli_mode(args):
         payload = {
             "summary": summary,
             "reports": [report.to_dict() for report in reports],
+            "unused_links": result.get("unused_links", []),
         }
         print(json.dumps(payload, indent=2))
     else:
@@ -126,6 +138,7 @@ def run_cli_mode(args):
         print(f"Errors: {summary.get('error', 0)}")
         print(f"Redirects: {summary['redirect']}")
         print(f"Outdated: {summary.get('outdated', 0)}")
+        print(f"Unused: {summary.get('unused', 0)}")
 
     return 0
 

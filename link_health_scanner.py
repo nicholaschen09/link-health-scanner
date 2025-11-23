@@ -13,7 +13,7 @@ import datetime as _dt
 import json
 import re
 import sys
-from collections import deque
+from collections import deque, defaultdict
 from dataclasses import dataclass, field
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
@@ -45,10 +45,10 @@ class _LinkExtractor(HTMLParser):
 @dataclass
 class LinkReport:
     url: str
-    referrer: Optional[str]
-    status: str
-    status_code: Optional[int]
-    redirected_to: Optional[str]
+    referrers: List[str] = field(default_factory=list)
+    status: str = "unknown"
+    status_code: Optional[int] = None
+    redirected_to: Optional[str] = None
     issues: List[str] = field(default_factory=list)
     outdated_signals: List[str] = field(default_factory=list)
     content_type: Optional[str] = None
@@ -56,7 +56,7 @@ class LinkReport:
     def to_dict(self) -> Dict[str, object]:
         return {
             "url": self.url,
-            "referrer": self.referrer,
+            "referrers": self.referrers,
             "status": self.status,
             "status_code": self.status_code,
             "redirected_to": self.redirected_to,
@@ -105,24 +105,26 @@ class LinkHealthScanner:
 
     def run(self) -> Dict[str, object]:
         """Run the crawl and return reports plus summary statistics."""
-        queue: Deque[Tuple[str, Optional[str], int]] = deque()
-        queue.append((self.start_url, None, 0))
+        queue: Deque[Tuple[str, int]] = deque()
+        queue.append((self.start_url, 0))
         queued: Set[str] = {self.start_url}
         visited: Set[str] = set()
+        referrer_map: Dict[str, Set[str]] = defaultdict(set)
 
         reports: List[LinkReport] = []
         pages_crawled = 0
         total_requests = 0
 
         while queue and total_requests < self.max_requests:
-            url, referrer, depth = queue.popleft()
+            url, depth = queue.popleft()
             queued.discard(url)
             if url in visited:
                 continue
             visited.add(url)
 
             total_requests += 1
-            report, discovered_links, is_html = self._check_url(url, referrer)
+            report, discovered_links, is_html = self._check_url(url)
+            report.referrers = sorted(referrer_map.get(url, []))
             reports.append(report)
 
             if (
@@ -141,19 +143,20 @@ class LinkHealthScanner:
                         not self._is_same_domain(normalized)
                     ):
                         continue
+                    referrer_map[normalized].add(url)
                     if normalized in visited or normalized in queued:
                         continue
                     if total_requests + len(queued) >= self.max_requests:
                         break
-                    queue.append((normalized, url, depth + 1))
+                    queue.append((normalized, depth + 1))
                     queued.add(normalized)
 
         summary = self._build_summary(reports)
-        return {"reports": reports, "summary": summary}
+        unused_links = self._find_unused_links(reports)
+        summary["unused"] = len(unused_links)
+        return {"reports": reports, "summary": summary, "unused_links": unused_links}
 
-    def _check_url(
-        self, url: str, referrer: Optional[str]
-    ) -> Tuple[LinkReport, Set[str], bool]:
+    def _check_url(self, url: str) -> Tuple[LinkReport, Set[str], bool]:
         issues: List[str] = []
         outdated_signals: List[str] = []
         discovered_links: Set[str] = set()
@@ -202,7 +205,6 @@ class LinkHealthScanner:
 
         report = LinkReport(
             url=url,
-            referrer=referrer,
             status=status,
             status_code=status_code,
             redirected_to=redirected_to,
@@ -268,6 +270,7 @@ class LinkHealthScanner:
             "redirect": 0,
             "error": 0,
             "outdated": 0,
+            "unused": 0,
         }
         for report in reports:
             if report.status in summary:
@@ -275,6 +278,18 @@ class LinkHealthScanner:
             if report.outdated_signals:
                 summary["outdated"] += 1
         return summary
+
+    def _find_unused_links(self, reports: List[LinkReport]) -> List[str]:
+        """Identify internal pages that were never referenced (orphans)."""
+        unused = []
+        for report in reports:
+            if (
+                self._is_same_domain(report.url)
+                and report.url != self.start_url
+                and not report.referrers
+            ):
+                unused.append(report.url)
+        return unused
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -352,6 +367,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         timeout=args.timeout,
         outdated_days=args.outdated_days,
     )
+    start_url = scanner.start_url
     result = scanner.run()
     reports: List[LinkReport] = result["reports"]  # type: ignore[assignment]
     summary: Dict[str, int] = result["summary"]  # type: ignore[assignment]
@@ -360,6 +376,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         payload = {
             "summary": summary,
             "reports": [report.to_dict() for report in reports],
+            "unused_links": result.get("unused_links", []),
         }
         print(json.dumps(payload, indent=2))
         return 0
@@ -372,6 +389,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"Server errors: {summary['server-error']}")
     print(f"Redirects: {summary['redirect']}")
     print(f"Outdated pages detected: {summary['outdated']}")
+    print(f"Unused / orphan links: {summary.get('unused', 0)}")
     print()
 
     def _print_section(title: str, condition):
@@ -383,8 +401,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             parts = [f"- {rep.url}"]
             if rep.status_code:
                 parts.append(f"(HTTP {rep.status_code})")
-            if rep.referrer:
-                parts.append(f"from {rep.referrer}")
+            if rep.referrers:
+                sources = ", ".join(rep.referrers[:3])
+                if len(rep.referrers) > 3:
+                    sources += ", ..."
+                parts.append(f"from {sources}")
             if rep.redirected_to:
                 parts.append(f"-> {rep.redirected_to}")
             if rep.issues:
@@ -401,6 +422,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     _print_section("Redirects", lambda r: r.redirected_to is not None)
     _print_section("Outdated Content", lambda r: bool(r.outdated_signals))
+    _print_section(
+        "Unused / Orphan Links",
+        lambda r: scanner._is_same_domain(r.url)
+        and r.url != start_url
+        and not r.referrers,
+    )
 
     return 0
 
