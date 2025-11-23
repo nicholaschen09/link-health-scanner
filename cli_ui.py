@@ -177,12 +177,12 @@ def display_summary(summary: Dict[str, int]):
     padding = (width - 40) // 2
 
     print(" " * padding + f"Total Links Scanned: {summary.get('total', 0)}")
-    print(" " * padding + f"✓ Healthy Links: {summary.get('ok', 0)}")
-    print(" " * padding + f"✗ Broken Links: {summary.get('broken', 0)}")
-    print(" " * padding + f"⚠ Server Errors: {summary.get('server-error', 0)}")
-    print(" " * padding + f"↻ Redirects: {summary.get('redirect', 0)}")
-    print(" " * padding + f"⌚ Outdated Pages: {summary.get('outdated', 0)}")
-    print(" " * padding + f"! Connection Errors: {summary.get('error', 0)}")
-    print(" " * padding + f"Ø Unused Links: {summary.get('unused', 0)}")
+    print(" " * padding + f"Healthy Links: {summary.get('ok', 0)}")
+    print(" " * padding + f"Broken Links: {summary.get('broken', 0)}")
+    print(" " * padding + f"Server Errors: {summary.get('server-error', 0)}")
+    print(" " * padding + f"Redirects: {summary.get('redirect', 0)}")
+    print(" " * padding + f"Outdated Pages: {summary.get('outdated', 0)}")
+    print(" " * padding + f"Connection Errors: {summary.get('error', 0)}")
+    print(" " * padding + f"Unused Links: {summary.get('unused', 0)}")
 
     print("\n")

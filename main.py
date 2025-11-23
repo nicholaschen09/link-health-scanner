@@ -71,7 +71,7 @@ def display_detailed_results(
         if broken:
             print("\n" + cli_ui.center_text("── Broken Links ──"))
             for rep in broken:
-                print(f"{indent}✗ {rep.url}")
+                print(f"{indent}URL: {rep.url}")
                 if rep.referrers:
                     sources = ", ".join(rep.referrers[:3])
                     if len(rep.referrers) > 3:
@@ -85,24 +85,59 @@ def display_detailed_results(
         if redirects:
             print("\n" + cli_ui.center_text("── Redirects ──"))
             for rep in redirects:
-                print(f"{indent}↻ {rep.url}")
-                print(f"{indent}  → {rep.redirected_to}")
+                print(f"{indent}URL: {rep.url}")
+                print(f"{indent}  Redirects to: {rep.redirected_to}")
 
     if options['check_outdated']:
         outdated = [r for r in reports if r.outdated_signals]
         if outdated:
             print("\n" + cli_ui.center_text("── Potentially Outdated ──"))
             for rep in outdated:
-                print(f"{indent}⌚ {rep.url}")
+                print(f"{indent}URL: {rep.url}")
                 for signal in rep.outdated_signals:
-                    print(f"{indent}  • {signal}")
+                    print(f"{indent}  Signal: {signal}")
 
     if unused_links:
         print("\n" + cli_ui.center_text("── Unused / Orphan Links ──"))
         for url in unused_links:
-            print(f"{indent}Ø {url}")
+            print(f"{indent}{url}")
 
     print("\n")
+
+
+def print_cli_sections(reports: List[LinkReport], unused_links: List[str]):
+    """Print detailed sections for CLI mode without interactive UI."""
+
+    def _print_section(title: str, predicate):
+        items = [r for r in reports if predicate(r)]
+        if not items:
+            return
+        print(f"\n{title}")
+        for rep in items:
+            print(f"- URL: {rep.url}")
+            if rep.status_code:
+                print(f"  Status: HTTP {rep.status_code}")
+            if rep.referrers:
+                sources = ", ".join(rep.referrers[:3])
+                if len(rep.referrers) > 3:
+                    sources += ", ..."
+                print(f"  Found on: {sources}")
+            if rep.redirected_to:
+                print(f"  Redirects to: {rep.redirected_to}")
+            if rep.issues:
+                print(f"  Issues: {', '.join(rep.issues)}")
+            if rep.outdated_signals:
+                print(f"  Outdated signals: {', '.join(rep.outdated_signals)}")
+
+    _print_section("Broken / Error Links", lambda r: r.status in {'broken', 'error'})
+    _print_section("Server Errors", lambda r: r.status == 'server-error')
+    _print_section("Redirects", lambda r: r.redirected_to is not None)
+    _print_section("Outdated Content", lambda r: bool(r.outdated_signals))
+
+    if unused_links:
+        print("\nUnused / Orphan Links")
+        for url in unused_links:
+            print(f"- {url}")
 
 
 def run_cli_mode(args):
@@ -120,12 +155,13 @@ def run_cli_mode(args):
     result = scanner.run()
     reports = result["reports"]
     summary = result["summary"]
+    unused_links = result.get("unused_links", [])
 
     if args.json:
         payload = {
             "summary": summary,
             "reports": [report.to_dict() for report in reports],
-            "unused_links": result.get("unused_links", []),
+            "unused_links": unused_links,
         }
         print(json.dumps(payload, indent=2))
     else:
@@ -139,6 +175,7 @@ def run_cli_mode(args):
         print(f"Redirects: {summary['redirect']}")
         print(f"Outdated: {summary.get('outdated', 0)}")
         print(f"Unused: {summary.get('unused', 0)}")
+        print_cli_sections(reports, unused_links)
 
     return 0
 
