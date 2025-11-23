@@ -105,12 +105,12 @@ def display_detailed_results(
                 for signal in rep.outdated_signals:
                     print(f"{indent}  Signal: {signal}")
 
-    if unused_links:
+    if options['check_orphans'] and unused_links:
         print("\n" + cli_ui.center_text("── Orphan Links (no internal references) ──"))
         for url in unused_links:
             print(f"{indent}{url}")
 
-    if sitemap_only_links:
+    if options['check_orphans'] and sitemap_only_links:
         print("\n" + cli_ui.center_text("── Sitemap-only Links (never visited) ──"))
         for url in sitemap_only_links:
             print(f"{indent}{url}")
@@ -127,6 +127,10 @@ def display_detailed_results(
             print(f"{indent}  Redirects to: {rep.redirected_to}")
         if rep.issues:
             print(f"{indent}  Issues: {', '.join(rep.issues)}")
+        if rep.links_found:
+            print(f"{indent}  Links found:")
+            for child in rep.links_found:
+                print(f"{indent}    - {child}")
 
     print("\n")
 
@@ -135,6 +139,8 @@ def print_cli_sections(
     reports: List[LinkReport],
     unused_links: List[str],
     sitemap_only_links: List[str],
+    *,
+    show_orphans: bool,
 ):
     """Print detailed sections for CLI mode without interactive UI."""
 
@@ -164,11 +170,11 @@ def print_cli_sections(
     _print_section("Redirects", lambda r: r.redirected_to is not None)
     _print_section("Outdated Content", lambda r: bool(r.outdated_signals))
 
-    if unused_links:
+    if show_orphans and unused_links:
         print("\nOrphan Links (no internal references)")
         for url in unused_links:
             print(f"- {url}")
-    if sitemap_only_links:
+    if show_orphans and sitemap_only_links:
         print("\nSitemap-only Links (never visited during crawl)")
         for url in sitemap_only_links:
             print(f"- {url}")
@@ -184,6 +190,10 @@ def print_cli_sections(
             print(f"  Redirects to: {rep.redirected_to}")
         if rep.issues:
             print(f"  Issues: {', '.join(rep.issues)}")
+        if rep.links_found:
+            print("  Links found:")
+            for child in rep.links_found:
+                print(f"    - {child}")
 
 
 def run_cli_mode(args):
@@ -191,7 +201,7 @@ def run_cli_mode(args):
     scanner = LinkHealthScanner(
         args.url,
         include_external=args.include_external,
-        check_orphans=args.check_orphans,
+        check_orphans=not args.skip_orphans,
         max_pages=args.max_pages,
         max_requests=args.max_requests,
         max_depth=args.max_depth,
@@ -223,9 +233,14 @@ def run_cli_mode(args):
         print(f"Errors: {summary.get('error', 0)}")
         print(f"Redirects: {summary['redirect']}")
         print(f"Outdated: {summary.get('outdated', 0)}")
-        if args.check_orphans:
+        if not args.skip_orphans:
             print(f"Unused: {summary.get('unused', 0)}")
-        print_cli_sections(reports, unused_links, sitemap_only_links)
+        print_cli_sections(
+            reports,
+            unused_links,
+            sitemap_only_links,
+            show_orphans=not args.skip_orphans,
+        )
 
     return 0
 
@@ -246,7 +261,7 @@ def main():
     parser.add_argument("--timeout", type=int, default=10)
     parser.add_argument("--outdated-days", type=int, default=365)
     parser.add_argument("--include-external", action="store_true")
-    parser.add_argument("--check-orphans", action="store_true")
+    parser.add_argument("--skip-orphans", action="store_true")
 
     args = parser.parse_args()
 
@@ -256,6 +271,8 @@ def main():
 
     # If URL is provided, run in CLI mode
     if args.url:
+        if not args.url.startswith(("http://", "https://")):
+            args.url = "https://" + args.url
         return run_cli_mode(args)
 
     # Otherwise, run interactive mode

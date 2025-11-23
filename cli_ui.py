@@ -76,7 +76,7 @@ def get_scan_options() -> Dict[str, Any]:
         {'name': 'Check for redirects', 'key': 'check_redirects', 'value': True},
         {'name': 'Check for outdated content', 'key': 'check_outdated', 'value': True},
         {'name': 'Include external links', 'key': 'include_external', 'value': False},
-        {'name': 'Check for unused/sitemap routes', 'key': 'check_orphans', 'value': False},
+        {'name': 'Check for unused/sitemap routes', 'key': 'check_orphans', 'value': True},
     ]
 
     # Fixed numeric options

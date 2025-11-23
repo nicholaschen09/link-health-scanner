@@ -53,6 +53,7 @@ class LinkReport:
     issues: List[str] = field(default_factory=list)
     outdated_signals: List[str] = field(default_factory=list)
     content_type: Optional[str] = None
+    links_found: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, object]:
         return {
@@ -64,6 +65,7 @@ class LinkReport:
             "issues": self.issues,
             "outdated_signals": self.outdated_signals,
             "content_type": self.content_type,
+            "links_found": self.links_found,
         }
 
 
@@ -83,7 +85,7 @@ class LinkHealthScanner:
         start_url: str,
         *,
         include_external: bool = False,
-        check_orphans: bool = False,
+        check_orphans: bool = True,
         max_pages: int = 150,
         max_requests: int = 500,
         max_depth: int = 3,
@@ -141,10 +143,7 @@ class LinkHealthScanner:
                 and depth < self.max_depth
             ):
                 pages_crawled += 1
-                for raw_link in discovered_links:
-                    normalized = self._normalize_link(url, raw_link)
-                    if not normalized:
-                        continue
+                for normalized in discovered_links:
                     if (not self.include_external) and (
                         not self._is_same_domain(normalized)
                     ):
@@ -178,6 +177,7 @@ class LinkHealthScanner:
         issues: List[str] = []
         outdated_signals: List[str] = []
         discovered_links: Set[str] = set()
+        links_found: List[str] = []
         content_type: Optional[str] = None
         redirected_to: Optional[str] = None
         status_code: Optional[int] = None
@@ -216,7 +216,13 @@ class LinkHealthScanner:
                 outdated_signals = self._detect_outdated(response, response.text)
                 extractor = _LinkExtractor()
                 extractor.feed(response.text)
-                discovered_links = extractor.found
+                normalized_links: Set[str] = set()
+                for raw_link in extractor.found:
+                    normalized = self._normalize_link(url, raw_link)
+                    if normalized:
+                        normalized_links.add(normalized)
+                discovered_links = normalized_links
+                links_found = sorted(normalized_links)
         except requests.RequestException as exc:
             issues.append(str(exc))
             status = "error"
@@ -229,6 +235,7 @@ class LinkHealthScanner:
             issues=issues,
             outdated_signals=outdated_signals,
             content_type=content_type,
+            links_found=links_found,
         )
         return report, discovered_links, is_html
 
@@ -382,9 +389,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Also crawl and audit external domains (default: off)",
     )
     parser.add_argument(
-        "--check-orphans",
+        "--skip-orphans",
         action="store_true",
-        help="Also flag orphan/sitemap-only routes (default: off)",
+        help="Skip orphan/sitemap-only discovery to reduce noise",
     )
     parser.add_argument(
         "--json",
@@ -407,11 +414,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             start_url = ""
     if not start_url:
         parser.error("A starting URL is required.")
+    if not start_url.startswith(("http://", "https://")):
+        start_url = "https://" + start_url
 
     scanner = LinkHealthScanner(
         start_url,
         include_external=args.include_external,
-        check_orphans=args.check_orphans,
+        check_orphans=not args.skip_orphans,
         max_pages=args.max_pages,
         max_requests=args.max_requests,
         max_depth=args.max_depth,
@@ -443,7 +452,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"Server errors: {summary['server-error']}")
     print(f"Redirects: {summary['redirect']}")
     print(f"Outdated pages detected: {summary['outdated']}")
-    if args.check_orphans:
+    if not args.skip_orphans:
         print(f"Unused / orphan links: {summary.get('unused', 0)}")
         print()
 
@@ -477,12 +486,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     _print_section("Redirects", lambda r: r.redirected_to is not None)
     _print_section("Outdated Content", lambda r: bool(r.outdated_signals))
-    if unused_links:
+    if unused_links and (not args.skip_orphans):
         print("Unused / Orphan Links")
         for url in unused_links:
             print(f"  - {url}")
         print()
-    if sitemap_only_links:
+    if sitemap_only_links and (not args.skip_orphans):
         print("Sitemap-only Links (never visited)")
         for url in sitemap_only_links:
             print(f"  - {url}")
@@ -499,6 +508,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"      Redirects to: {rep.redirected_to}")
         if rep.issues:
             print(f"      Issues: {', '.join(rep.issues)}")
+        if rep.links_found:
+            print("      Links found:")
+            for child in rep.links_found:
+                print(f"        - {child}")
     print()
 
     return 0
