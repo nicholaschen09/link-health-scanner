@@ -8,7 +8,7 @@ Audit a site (portfolio, marketing page, documentation, etc.) for broken links, 
 - Collects `href`/`src` attributes for anchors, images, stylesheets, and scripts.
 - Flags HTTP 4xx/5xx responses, network failures, and redirect chains.
 - Detects outdated pages via `Last-Modified` headers, old years appearing in the body, and stale phrases (`"under construction"`, `"coming soon"`, etc.).
-- Spots unused/orphan internal pages that nothing links to.
+- Spots unused/orphan internal pages that nothing links to, including URLs from `sitemap.xml` that never surfaced during the crawl.
 - Outputs a text summary by default or full JSON for downstream tooling.
 
 ### Installation
@@ -48,7 +48,7 @@ If you omit the URL argument, the CLI will prompt you for one interactively afte
 
 - Summaries list how many URLs were OK, broken, redirected, failed, outdated, and unused/orphan.
 - Sections detail each broken link, redirect, server error, unused/orphan page, and page with outdated signals (including the referrers, HTTP status, and diagnostic notes).
-- JSON output exposes the same data plus a dedicated `unused_links` array for integration with CI or dashboards.
+- JSON output exposes the same data plus a dedicated `unused_links` array (including orphaned pages and sitemap-only entries) for integration with CI or dashboards.
 
 ### Notes
 

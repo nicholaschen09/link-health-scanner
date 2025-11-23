@@ -13,6 +13,7 @@ import datetime as _dt
 import json
 import re
 import sys
+import xml.etree.ElementTree as ET
 from collections import deque, defaultdict
 from dataclasses import dataclass, field
 from email.utils import parsedate_to_datetime
@@ -110,6 +111,7 @@ class LinkHealthScanner:
         queued: Set[str] = {self.start_url}
         visited: Set[str] = set()
         referrer_map: Dict[str, Set[str]] = defaultdict(set)
+        sitemap_candidates = self._fetch_sitemap_urls()
 
         reports: List[LinkReport] = []
         pages_crawled = 0
@@ -152,7 +154,7 @@ class LinkHealthScanner:
                     queued.add(normalized)
 
         summary = self._build_summary(reports)
-        unused_links = self._find_unused_links(reports)
+        unused_links = self._find_unused_links(reports, sitemap_candidates, visited)
         summary["unused"] = len(unused_links)
         return {"reports": reports, "summary": summary, "unused_links": unused_links}
 
@@ -279,17 +281,43 @@ class LinkHealthScanner:
                 summary["outdated"] += 1
         return summary
 
-    def _find_unused_links(self, reports: List[LinkReport]) -> List[str]:
-        """Identify internal pages that were never referenced (orphans)."""
-        unused = []
+    def _find_unused_links(
+        self,
+        reports: List[LinkReport],
+        sitemap_urls: Set[str],
+        visited_urls: Set[str],
+    ) -> List[str]:
+        """Identify orphan pages and sitemap entries never visited."""
+        unused: Set[str] = set()
         for report in reports:
             if (
                 self._is_same_domain(report.url)
                 and report.url != self.start_url
                 and not report.referrers
             ):
-                unused.append(report.url)
-        return unused
+                unused.add(report.url)
+        for url in sitemap_urls:
+            if self._is_same_domain(url) and url not in visited_urls:
+                unused.add(url)
+        return sorted(unused)
+
+    def _fetch_sitemap_urls(self) -> Set[str]:
+        """Attempt to fetch sitemap.xml to discover unlinked pages."""
+        sitemap_url = urljoin(self.start_url, "/sitemap.xml")
+        candidates: Set[str] = set()
+        try:
+            response = self._session.get(sitemap_url, timeout=self.timeout)
+            if response.status_code != 200:
+                return candidates
+            root = ET.fromstring(response.text)
+            for loc in root.iter():
+                if loc.tag.endswith("loc") and loc.text:
+                    normalized = self._normalize_link(self.start_url, loc.text.strip())
+                    if normalized and self._is_same_domain(normalized):
+                        candidates.add(normalized)
+        except (requests.RequestException, ET.ParseError):
+            return candidates
+        return candidates
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
