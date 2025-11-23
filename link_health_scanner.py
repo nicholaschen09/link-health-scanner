@@ -83,6 +83,7 @@ class LinkHealthScanner:
         start_url: str,
         *,
         include_external: bool = False,
+        check_orphans: bool = False,
         max_pages: int = 150,
         max_requests: int = 500,
         max_depth: int = 3,
@@ -99,6 +100,7 @@ class LinkHealthScanner:
         self.max_depth = max_depth
         self.timeout = timeout
         self.outdated_days = outdated_days
+        self.check_orphans = check_orphans
 
         self._base_host = urlparse(self.start_url).netloc
         self._session = requests.Session()
@@ -111,7 +113,9 @@ class LinkHealthScanner:
         queued: Set[str] = {self.start_url}
         visited: Set[str] = set()
         referrer_map: Dict[str, Set[str]] = defaultdict(set)
-        sitemap_candidates = self._fetch_sitemap_urls()
+        sitemap_candidates: Set[str] = set()
+        if self.check_orphans:
+            sitemap_candidates = self._fetch_sitemap_urls()
 
         reports: List[LinkReport] = []
         pages_crawled = 0
@@ -154,10 +158,15 @@ class LinkHealthScanner:
                     queued.add(normalized)
 
         summary = self._build_summary(reports)
-        orphan_links, sitemap_only_links = self._find_unused_links(
-            reports, sitemap_candidates, visited
-        )
-        summary["unused"] = len(orphan_links) + len(sitemap_only_links)
+        orphan_links: List[str] = []
+        sitemap_only_links: List[str] = []
+        if self.check_orphans:
+            orphan_links, sitemap_only_links = self._find_unused_links(
+                reports, sitemap_candidates, visited
+            )
+            summary["unused"] = len(orphan_links) + len(sitemap_only_links)
+        else:
+            summary["unused"] = 0
         return {
             "reports": reports,
             "summary": summary,
@@ -373,6 +382,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Also crawl and audit external domains (default: off)",
     )
     parser.add_argument(
+        "--check-orphans",
+        action="store_true",
+        help="Also flag orphan/sitemap-only routes (default: off)",
+    )
+    parser.add_argument(
         "--json",
         dest="as_json",
         action="store_true",
@@ -397,6 +411,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     scanner = LinkHealthScanner(
         start_url,
         include_external=args.include_external,
+        check_orphans=args.check_orphans,
         max_pages=args.max_pages,
         max_requests=args.max_requests,
         max_depth=args.max_depth,
@@ -428,8 +443,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"Server errors: {summary['server-error']}")
     print(f"Redirects: {summary['redirect']}")
     print(f"Outdated pages detected: {summary['outdated']}")
-    print(f"Unused / orphan links: {summary.get('unused', 0)}")
-    print()
+    if args.check_orphans:
+        print(f"Unused / orphan links: {summary.get('unused', 0)}")
+        print()
 
     def _print_section(title: str, condition):
         matching = [r for r in reports if condition(r)]

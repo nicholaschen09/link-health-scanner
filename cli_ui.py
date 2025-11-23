@@ -46,7 +46,7 @@ def print_header():
 def get_url_input() -> str:
     """Get URL input from user with clean formatting."""
     width = get_terminal_width()
-    print(center_text("Enter the website URL to scan:"))
+    print(center_text("Enter the website URL to scan (or type 'q' to quit):"))
     print(center_text("(include http:// or https://)"))
     print()
 
@@ -55,6 +55,9 @@ def get_url_input() -> str:
     padding = (width - len(prompt) - 40) // 2  # 40 chars for typical URL
     print(" " * padding, end="")
     url = input(prompt).strip()
+
+    if url.lower() in {'q', 'quit', 'exit'}:
+        return "q"
 
     if not url.startswith(('http://', 'https://')):
         if not url:
@@ -73,6 +76,7 @@ def get_scan_options() -> Dict[str, Any]:
         {'name': 'Check for redirects', 'key': 'check_redirects', 'value': True},
         {'name': 'Check for outdated content', 'key': 'check_outdated', 'value': True},
         {'name': 'Include external links', 'key': 'include_external', 'value': False},
+        {'name': 'Check for unused/sitemap routes', 'key': 'check_orphans', 'value': False},
     ]
 
     # Fixed numeric options
@@ -169,7 +173,7 @@ def display_results_header():
     print("\n")
 
 
-def display_summary(summary: Dict[str, int]):
+def display_summary(summary: Dict[str, int], *, show_unused: bool):
     """Display scan summary with clean formatting."""
     width = get_terminal_width()
 
@@ -183,6 +187,17 @@ def display_summary(summary: Dict[str, int]):
     print(" " * padding + f"Redirects: {summary.get('redirect', 0)}")
     print(" " * padding + f"Outdated Pages: {summary.get('outdated', 0)}")
     print(" " * padding + f"Connection Errors: {summary.get('error', 0)}")
-    print(" " * padding + f"Unused Links: {summary.get('unused', 0)}")
+    if show_unused:
+        print(" " * padding + f"Unused Links: {summary.get('unused', 0)}")
 
     print("\n")
+
+
+def prompt_run_again() -> bool:
+    """Ask whether the user wants to run another scan."""
+    width = get_terminal_width()
+    prompt = "Scan another URL? [Y/n]: "
+    padding = (width - len(prompt)) // 2
+    print(" " * padding, end="")
+    answer = input(prompt).strip().lower()
+    return answer in {"", "y", "yes"}

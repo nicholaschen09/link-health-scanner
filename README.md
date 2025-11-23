@@ -8,7 +8,7 @@ Audit an entire site or application (marketing pages, docs, dashboards) for brok
 - Collects `href`/`src` attributes for anchors, images, stylesheets, and scripts.
 - Flags HTTP 4xx/5xx responses, network failures, and redirect chains.
 - Detects outdated pages via `Last-Modified` headers, old years appearing in the body, and stale phrases (`"under construction"`, `"coming soon"`, etc.).
-- Spots unused/orphan internal pages that nothing links to, and highlights `sitemap.xml` entries that never surfaced during the crawl.
+- (Optional) Spots unused/orphan internal pages and highlights `sitemap.xml` entries that never surfaced during the crawl when you enable the orphan check.
 - Outputs a text summary by default or full JSON for downstream tooling.
 
 ### Installation
@@ -41,17 +41,19 @@ Flags:
 - `--outdated-days`: Threshold for flagging old `Last-Modified` headers (default 365).
 - `--include-external`: Audit off-domain links as well.
 - `--json`: Emit machine-readable JSON (omit for a text summary).
+- `--check-orphans`: Also flag orphan/sitemap-only routes (disabled by default to reduce noise).
 
 If you omit the URL argument, the CLI will prompt you for one interactively after launch.
 
 ### Output
 
-- Summaries list how many URLs were OK, broken, redirected, failed, outdated, and unused (orphans + sitemap-only).
-- Sections detail each broken link, redirect, server error, orphan page, sitemap-only entry, and page with outdated signals (including the referrers, HTTP status, and diagnostic notes).
-- JSON output exposes the same data plus dedicated `unused_links` (orphans) and `sitemap_only_links` arrays for integration with CI or dashboards.
+- Summaries list how many URLs were OK, broken, redirected, failed, and outdated. Enable the orphan option to also show unused counts.
+- Sections detail each broken link, redirect, server error, and page with outdated signals (including the referrers, HTTP status, and diagnostic notes). When orphan checking is enabled, you'll also see orphan pages and sitemap-only entries.
+- JSON output exposes the same data plus dedicated `unused_links` (orphans) and `sitemap_only_links` arrays whenever that feature is enabled.
 
 ### Notes
 
 - The crawler trims fragments, skips `mailto:`/`tel:`/`javascript:` pseudo links, and only follows HTTP/HTTPS URLs.
 - Redirect-heavy sites may count as multiple requests because the entire chain is recorded.
 - Use generous `--max-requests` / `--max-pages` values for larger sites, or keep them low (e.g., 50/200) for portfolios to avoid long runs.
+- Interactive mode lets you scan multiple URLs in one session; type `q` to exit when prompted for a URL.

@@ -14,48 +14,52 @@ import cli_ui
 
 def run_interactive_mode():
     """Run the scanner in interactive mode with clean UI."""
-    # Display header
     cli_ui.print_header()
-
-    # Get URL from user
-    url = cli_ui.get_url_input()
-    if not url:
-        print(cli_ui.center_text("No URL provided. Exiting."))
-        return 1
-
-    # Get scan options
     options = cli_ui.get_scan_options()
 
-    # Display scanning message
-    cli_ui.display_scanning_message()
+    while True:
+        url = cli_ui.get_url_input()
+        if not url:
+            print(cli_ui.center_text("Please enter a URL or type 'q' to quit."))
+            continue
+        if url.lower() == "q":
+            print(cli_ui.center_text("Goodbye!"))
+            return 0
 
-    # Run the scanner
-    try:
-        scanner = LinkHealthScanner(
-            url,
-            include_external=options['include_external'],
-            max_pages=options['max_pages'],
-            max_depth=options['max_depth'],
-            timeout=options['timeout'],
-        )
+        cli_ui.display_scanning_message()
 
-        result = scanner.run()
-        reports: List[LinkReport] = result["reports"]
-        summary = result["summary"]
-        unused_links = result.get("unused_links", [])
-        sitemap_only_links = result.get("sitemap_only_links", [])
+        try:
+            scanner = LinkHealthScanner(
+                url,
+                include_external=options['include_external'],
+                check_orphans=options['check_orphans'],
+                max_pages=options['max_pages'],
+                max_depth=options['max_depth'],
+                timeout=options['timeout'],
+            )
 
-        # Display results
-        cli_ui.display_results_header()
-        cli_ui.display_summary(summary)
+            result = scanner.run()
+            reports: List[LinkReport] = result["reports"]
+            summary = result["summary"]
+            unused_links = result.get("unused_links", [])
+            sitemap_only_links = result.get("sitemap_only_links", [])
 
-        # Always show detailed results for clarity
-        display_detailed_results(reports, options, unused_links, sitemap_only_links)
+            # Display results
+            cli_ui.display_results_header()
+            cli_ui.display_summary(summary, show_unused=options['check_orphans'])
 
-    except Exception as e:
-        print(cli_ui.center_text(f"Error: {str(e)}"))
-        return 1
+            # Always show detailed results for clarity
+            display_detailed_results(reports, options, unused_links, sitemap_only_links)
 
+        except Exception as e:
+            print(cli_ui.center_text(f"Error: {str(e)}"))
+            return 1
+
+        if not cli_ui.prompt_run_again():
+            break
+        cli_ui.print_header()
+
+    print(cli_ui.center_text("Goodbye!"))
     return 0
 
 
@@ -187,6 +191,7 @@ def run_cli_mode(args):
     scanner = LinkHealthScanner(
         args.url,
         include_external=args.include_external,
+        check_orphans=args.check_orphans,
         max_pages=args.max_pages,
         max_requests=args.max_requests,
         max_depth=args.max_depth,
@@ -218,7 +223,8 @@ def run_cli_mode(args):
         print(f"Errors: {summary.get('error', 0)}")
         print(f"Redirects: {summary['redirect']}")
         print(f"Outdated: {summary.get('outdated', 0)}")
-        print(f"Unused: {summary.get('unused', 0)}")
+        if args.check_orphans:
+            print(f"Unused: {summary.get('unused', 0)}")
         print_cli_sections(reports, unused_links, sitemap_only_links)
 
     return 0
@@ -240,6 +246,7 @@ def main():
     parser.add_argument("--timeout", type=int, default=10)
     parser.add_argument("--outdated-days", type=int, default=365)
     parser.add_argument("--include-external", action="store_true")
+    parser.add_argument("--check-orphans", action="store_true")
 
     args = parser.parse_args()
 
