@@ -1,4 +1,4 @@
-## Broken Link Auditor CLI
+## Link Health Scanner CLI
 
 Audit a site (portfolio, marketing page, documentation, etc.) for broken links, server errors, noisy redirect chains, and stale content indicators such as old `Last-Modified` headers or outdated copyright years.
 
@@ -21,7 +21,7 @@ python -m pip install -r requirements.txt
 ### Usage
 
 ```bash
-python broken_link_auditor.py https://example.com \
+python link_health_scanner.py https://example.com \
   --max-pages 150 \
   --max-requests 500 \
   --max-depth 3 \

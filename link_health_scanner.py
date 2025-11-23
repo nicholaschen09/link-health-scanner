@@ -1,7 +1,7 @@
 """
-Broken Link Auditor core logic.
+Link Health Scanner core logic.
 
-This module exposes a `BrokenLinkAuditor` class that can crawl a site,
+This module exposes a `LinkHealthScanner` class that can crawl a site,
 collect discovered links, check their HTTP status, and look for signals
 that the content is outdated (old Last-Modified headers, stale years, etc.).
 """
@@ -66,7 +66,7 @@ class LinkReport:
         }
 
 
-class BrokenLinkAuditor:
+class LinkHealthScanner:
     """Crawl and audit links for HTTP errors, redirects, and stale content."""
 
     STALE_PHRASES = (
@@ -87,7 +87,7 @@ class BrokenLinkAuditor:
         max_depth: int = 3,
         timeout: int = 10,
         outdated_days: int = 365,
-        user_agent: str = "BrokenLinkAuditor/1.0 (+https://example.com)",
+        user_agent: str = "LinkHealthScanner/1.0 (+https://example.com)",
     ) -> None:
         if not start_url.startswith(("http://", "https://")):
             raise ValueError("Start URL must include scheme (http/https)")
@@ -330,7 +330,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = _build_arg_parser()
     args = parser.parse_args(argv)
 
-    auditor = BrokenLinkAuditor(
+    scanner = LinkHealthScanner(
         args.url,
         include_external=args.include_external,
         max_pages=args.max_pages,
@@ -339,7 +339,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         timeout=args.timeout,
         outdated_days=args.outdated_days,
     )
-    result = auditor.run()
+    result = scanner.run()
     reports: List[LinkReport] = result["reports"]  # type: ignore[assignment]
     summary: Dict[str, int] = result["summary"]  # type: ignore[assignment]
 
@@ -351,8 +351,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(json.dumps(payload, indent=2))
         return 0
 
-    print("Broken Link Auditor")
-    print("===================")
+    print("Link Health Scanner")
+    print("==================")
     print(f"Total checked: {summary['total']}")
     print(
         f"OK: {summary['ok']}  Broken: {summary['broken']}  "
