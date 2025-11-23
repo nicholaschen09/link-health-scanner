@@ -32,14 +32,12 @@ def print_header():
     """Print a clean, centered header."""
     clear_screen()
     print("\n" * 2)
-
-    # Box around the title
-    print(center_text("┌─────────────────────┐"))
-    print(center_text("│ LINK HEALTH SCANNER │"))
-    print(center_text("└─────────────────────┘"))
-
+    print(center_text("━" * 50))
+    print(center_text("LINK HEALTH SCANNER"))
+    print(center_text("━" * 50))
+    print("\n")
     print(center_text("a website link checker and analyzer"))
-    print("\n" * 1)
+    print("\n" * 2)
 
 
 def get_url_input() -> str:
