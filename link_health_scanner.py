@@ -84,7 +84,7 @@ class LinkHealthScanner:
         *,
         include_external: bool = False,
         check_orphans: bool = True,
-        max_pages: int = 150,
+        max_pages: int = 40,
         max_requests: int = 500,
         max_depth: int = 3,
         timeout: int = 10,

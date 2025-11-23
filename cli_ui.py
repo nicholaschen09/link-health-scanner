@@ -81,7 +81,7 @@ def get_scan_options() -> Dict[str, Any]:
 
     # Fixed numeric options
     fixed_options = {
-        'max_pages': 150,
+        'max_pages': 40,
         'max_depth': 3,
         'timeout': 10
     }
