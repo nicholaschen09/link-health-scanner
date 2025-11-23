@@ -47,9 +47,8 @@ def run_interactive_mode():
         cli_ui.display_results_header()
         cli_ui.display_summary(summary)
 
-        # Ask if user wants detailed view
-        if cli_ui.prompt_for_detailed_view():
-            display_detailed_results(reports, options)
+        # Always show detailed results for clarity
+        display_detailed_results(reports, options)
 
     except Exception as e:
         print(cli_ui.center_text(f"Error: {str(e)}"))

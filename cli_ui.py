@@ -158,13 +158,3 @@ def display_summary(summary: Dict[str, int]):
         print(" " * padding + f"! Connection Errors: {summary['error']}")
 
     print("\n")
-
-
-def prompt_for_detailed_view() -> bool:
-    """Ask if user wants to see detailed results."""
-    width = get_terminal_width()
-    prompt = "View detailed results? [Y/n]: "
-    padding = (width - len(prompt)) // 2
-    print(" " * padding, end="")
-    response = input(prompt).strip().lower()
-    return response != 'n'
