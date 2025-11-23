@@ -1,6 +1,6 @@
-## Link Health Scanner CLI
+## Link & Route Health Checker CLI
 
-Audit a site (portfolio, marketing page, documentation, etc.) for broken links, server errors, noisy redirect chains, and stale content indicators such as old `Last-Modified` headers or outdated copyright years.
+Audit an entire site or application (marketing pages, docs, dashboards) for broken links, orphaned routes, noisy redirect chains, and stale content indicators such as old `Last-Modified` headers or outdated copyright years. Think of it as a link/route health monitor that quickly surfaces navigation gaps.
 
 ### Features
 
@@ -8,7 +8,7 @@ Audit a site (portfolio, marketing page, documentation, etc.) for broken links, 
 - Collects `href`/`src` attributes for anchors, images, stylesheets, and scripts.
 - Flags HTTP 4xx/5xx responses, network failures, and redirect chains.
 - Detects outdated pages via `Last-Modified` headers, old years appearing in the body, and stale phrases (`"under construction"`, `"coming soon"`, etc.).
-- Spots unused/orphan internal pages that nothing links to, including URLs from `sitemap.xml` that never surfaced during the crawl.
+- Spots unused/orphan internal pages that nothing links to, and highlights `sitemap.xml` entries that never surfaced during the crawl.
 - Outputs a text summary by default or full JSON for downstream tooling.
 
 ### Installation
@@ -46,9 +46,9 @@ If you omit the URL argument, the CLI will prompt you for one interactively afte
 
 ### Output
 
-- Summaries list how many URLs were OK, broken, redirected, failed, outdated, and unused/orphan.
-- Sections detail each broken link, redirect, server error, unused/orphan page, and page with outdated signals (including the referrers, HTTP status, and diagnostic notes).
-- JSON output exposes the same data plus a dedicated `unused_links` array (including orphaned pages and sitemap-only entries) for integration with CI or dashboards.
+- Summaries list how many URLs were OK, broken, redirected, failed, outdated, and unused (orphans + sitemap-only).
+- Sections detail each broken link, redirect, server error, orphan page, sitemap-only entry, and page with outdated signals (including the referrers, HTTP status, and diagnostic notes).
+- JSON output exposes the same data plus dedicated `unused_links` (orphans) and `sitemap_only_links` arrays for integration with CI or dashboards.
 
 ### Notes
 

@@ -43,13 +43,14 @@ def run_interactive_mode():
         reports: List[LinkReport] = result["reports"]
         summary = result["summary"]
         unused_links = result.get("unused_links", [])
+        sitemap_only_links = result.get("sitemap_only_links", [])
 
         # Display results
         cli_ui.display_results_header()
         cli_ui.display_summary(summary)
 
         # Always show detailed results for clarity
-        display_detailed_results(reports, options, unused_links)
+        display_detailed_results(reports, options, unused_links, sitemap_only_links)
 
     except Exception as e:
         print(cli_ui.center_text(f"Error: {str(e)}"))
@@ -59,7 +60,10 @@ def run_interactive_mode():
 
 
 def display_detailed_results(
-    reports: List[LinkReport], options: dict, unused_links: List[str]
+    reports: List[LinkReport],
+    options: dict,
+    unused_links: List[str],
+    sitemap_only_links: List[str],
 ):
     """Display detailed results based on user preferences."""
     width = cli_ui.get_terminal_width()
@@ -98,14 +102,36 @@ def display_detailed_results(
                     print(f"{indent}  Signal: {signal}")
 
     if unused_links:
-        print("\n" + cli_ui.center_text("── Unused / Orphan Links ──"))
+        print("\n" + cli_ui.center_text("── Orphan Links (no internal references) ──"))
         for url in unused_links:
             print(f"{indent}{url}")
+
+    if sitemap_only_links:
+        print("\n" + cli_ui.center_text("── Sitemap-only Links (never visited) ──"))
+        for url in sitemap_only_links:
+            print(f"{indent}{url}")
+
+    # Always list every scanned link with status
+    print("\n" + cli_ui.center_text("── All Links Scanned ──"))
+    for rep in reports:
+        status = rep.status
+        if rep.status_code:
+            status += f" (HTTP {rep.status_code})"
+        print(f"{indent}{rep.url}")
+        print(f"{indent}  Status: {status}")
+        if rep.redirected_to:
+            print(f"{indent}  Redirects to: {rep.redirected_to}")
+        if rep.issues:
+            print(f"{indent}  Issues: {', '.join(rep.issues)}")
 
     print("\n")
 
 
-def print_cli_sections(reports: List[LinkReport], unused_links: List[str]):
+def print_cli_sections(
+    reports: List[LinkReport],
+    unused_links: List[str],
+    sitemap_only_links: List[str],
+):
     """Print detailed sections for CLI mode without interactive UI."""
 
     def _print_section(title: str, predicate):
@@ -135,9 +161,25 @@ def print_cli_sections(reports: List[LinkReport], unused_links: List[str]):
     _print_section("Outdated Content", lambda r: bool(r.outdated_signals))
 
     if unused_links:
-        print("\nUnused / Orphan Links")
+        print("\nOrphan Links (no internal references)")
         for url in unused_links:
             print(f"- {url}")
+    if sitemap_only_links:
+        print("\nSitemap-only Links (never visited during crawl)")
+        for url in sitemap_only_links:
+            print(f"- {url}")
+
+    print("\nAll Links Scanned")
+    for rep in reports:
+        status = rep.status
+        if rep.status_code:
+            status += f" (HTTP {rep.status_code})"
+        print(f"- {rep.url}")
+        print(f"  Status: {status}")
+        if rep.redirected_to:
+            print(f"  Redirects to: {rep.redirected_to}")
+        if rep.issues:
+            print(f"  Issues: {', '.join(rep.issues)}")
 
 
 def run_cli_mode(args):
@@ -156,12 +198,14 @@ def run_cli_mode(args):
     reports = result["reports"]
     summary = result["summary"]
     unused_links = result.get("unused_links", [])
+    sitemap_only_links = result.get("sitemap_only_links", [])
 
     if args.json:
         payload = {
             "summary": summary,
             "reports": [report.to_dict() for report in reports],
             "unused_links": unused_links,
+            "sitemap_only_links": sitemap_only_links,
         }
         print(json.dumps(payload, indent=2))
     else:
@@ -175,7 +219,7 @@ def run_cli_mode(args):
         print(f"Redirects: {summary['redirect']}")
         print(f"Outdated: {summary.get('outdated', 0)}")
         print(f"Unused: {summary.get('unused', 0)}")
-        print_cli_sections(reports, unused_links)
+        print_cli_sections(reports, unused_links, sitemap_only_links)
 
     return 0
 

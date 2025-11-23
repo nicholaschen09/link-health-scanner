@@ -154,9 +154,16 @@ class LinkHealthScanner:
                     queued.add(normalized)
 
         summary = self._build_summary(reports)
-        unused_links = self._find_unused_links(reports, sitemap_candidates, visited)
-        summary["unused"] = len(unused_links)
-        return {"reports": reports, "summary": summary, "unused_links": unused_links}
+        orphan_links, sitemap_only_links = self._find_unused_links(
+            reports, sitemap_candidates, visited
+        )
+        summary["unused"] = len(orphan_links) + len(sitemap_only_links)
+        return {
+            "reports": reports,
+            "summary": summary,
+            "unused_links": orphan_links,
+            "sitemap_only_links": sitemap_only_links,
+        }
 
     def _check_url(self, url: str) -> Tuple[LinkReport, Set[str], bool]:
         issues: List[str] = []
@@ -286,20 +293,21 @@ class LinkHealthScanner:
         reports: List[LinkReport],
         sitemap_urls: Set[str],
         visited_urls: Set[str],
-    ) -> List[str]:
+    ) -> Tuple[List[str], List[str]]:
         """Identify orphan pages and sitemap entries never visited."""
-        unused: Set[str] = set()
+        orphans: Set[str] = set()
+        sitemap_only: Set[str] = set()
         for report in reports:
             if (
                 self._is_same_domain(report.url)
                 and report.url != self.start_url
                 and not report.referrers
             ):
-                unused.add(report.url)
+                orphans.add(report.url)
         for url in sitemap_urls:
             if self._is_same_domain(url) and url not in visited_urls:
-                unused.add(url)
-        return sorted(unused)
+                sitemap_only.add(url)
+        return sorted(orphans), sorted(sitemap_only)
 
     def _fetch_sitemap_urls(self) -> Set[str]:
         """Attempt to fetch sitemap.xml to discover unlinked pages."""
@@ -399,12 +407,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     result = scanner.run()
     reports: List[LinkReport] = result["reports"]  # type: ignore[assignment]
     summary: Dict[str, int] = result["summary"]  # type: ignore[assignment]
+    unused_links: List[str] = result.get("unused_links", [])
+    sitemap_only_links: List[str] = result.get("sitemap_only_links", [])
 
     if args.as_json:
         payload = {
             "summary": summary,
             "reports": [report.to_dict() for report in reports],
-            "unused_links": result.get("unused_links", []),
+            "unused_links": unused_links,
+            "sitemap_only_links": sitemap_only_links,
         }
         print(json.dumps(payload, indent=2))
         return 0
@@ -450,12 +461,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     _print_section("Redirects", lambda r: r.redirected_to is not None)
     _print_section("Outdated Content", lambda r: bool(r.outdated_signals))
-    _print_section(
-        "Unused / Orphan Links",
-        lambda r: scanner._is_same_domain(r.url)
-        and r.url != start_url
-        and not r.referrers,
-    )
+    if unused_links:
+        print("Unused / Orphan Links")
+        for url in unused_links:
+            print(f"  - {url}")
+        print()
+    if sitemap_only_links:
+        print("Sitemap-only Links (never visited)")
+        for url in sitemap_only_links:
+            print(f"  - {url}")
+        print()
 
     return 0
 
