@@ -39,7 +39,7 @@ def print_header():
     print(center_text("└─────────────────────┘"))
 
     print(center_text("a website link checker and analyzer"))
-    print("\n" * 2)
+    print("\n" * 1)
 
 
 def get_url_input() -> str:
