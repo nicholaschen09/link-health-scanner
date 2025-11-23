@@ -367,10 +367,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     print("Link Health Scanner")
     print("==================")
     print(f"Total checked: {summary['total']}")
-    print(
-        f"OK: {summary['ok']}  Broken: {summary['broken']}  "
-        f"Server errors: {summary['server-error']}  Redirects: {summary['redirect']}"
-    )
+    print(f"OK: {summary['ok']}")
+    print(f"Broken: {summary['broken']}")
+    print(f"Server errors: {summary['server-error']}")
+    print(f"Redirects: {summary['redirect']}")
     print(f"Outdated pages detected: {summary['outdated']}")
     print()
 
