@@ -281,7 +281,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Audit a site for broken links and outdated pages."
     )
-    parser.add_argument("url", help="Starting URL (including http/https)")
+    parser.add_argument(
+        "url",
+        nargs="?",
+        help="Starting URL (including http/https). Leave blank to enter interactively.",
+    )
     parser.add_argument(
         "--max-pages",
         type=int,
@@ -330,8 +334,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = _build_arg_parser()
     args = parser.parse_args(argv)
 
+    start_url = args.url
+    if not start_url:
+        try:
+            start_url = input("Enter the starting URL (including http/https): ").strip()
+        except EOFError:
+            start_url = ""
+    if not start_url:
+        parser.error("A starting URL is required.")
+
     scanner = LinkHealthScanner(
-        args.url,
+        start_url,
         include_external=args.include_external,
         max_pages=args.max_pages,
         max_requests=args.max_requests,

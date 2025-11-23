@@ -41,6 +41,8 @@ Flags:
 - `--include-external`: Audit off-domain links as well.
 - `--json`: Emit machine-readable JSON (omit for a text summary).
 
+If you omit the URL argument, the CLI will prompt you for one interactively after launch.
+
 ### Output
 
 - Summaries list how many URLs were OK, broken, redirected, or failed, plus outdated pages.
